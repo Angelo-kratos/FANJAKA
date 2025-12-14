@@ -1,0 +1,7 @@
+{
+    "activite" : "graiss",
+    "periode" : "TRIMESTRIELLE",
+    "agent" : "Mécanicien",
+    "equipement" : "Convoyeur entré",
+    "section" : "MP1"
+}
