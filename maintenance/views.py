@@ -7,6 +7,7 @@ from maintenance import models
 from maintenance import serializers
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from datetime import timedelta
 
 
 @api_view(["GET"])
@@ -186,21 +187,7 @@ def maintenanceWithFiltering(request):
                 )
 
 
-{
-    
-   "activite" : "",
-    "periode" : "",
-    "agent" : "",
-    "durree" : "",
-    "section" : "",
-    "equipement" : "",
-    "etatMachine" : "",
-    "priorite" : "",
-    "coutPrevue" : "",
-    "modeOperatoire" : "",
-    "dateTimeDemarrageComptage" : "",
-    
-}
+
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -227,7 +214,7 @@ def addPreventive(request):
                         if periode:
                             try:
                                 agent = models.Poste.objects.get(name=agent)
-                                
+                                print(agent)
                                 if agent:
                                     try:
                                         section = models.Section.objects.get(name=section)
@@ -251,25 +238,46 @@ def addPreventive(request):
                                                                             try:
                                                                                 dt = parse_datetime(dateTimeDemarrageComptage)
                                                                                 dateTimeDemarrageComptage = timezone.make_aware(dt)
-
+                                                                                lst_periode = [
+                                                                                            "ANNUELLE", "SEMESTRIELLE", "BIMESTRIELLE", "TRIMESTRIELLE",
+                                                                                            "MENSUELE", "HEBDOMADAIRE", "JOURNALIERE"
+                                                                                            ]
+                                                                                
+                                                                                value_periode = [360, 180, 60, 90, 30, 7, 1]
+                                                                                prd = periode.name
+                                                                                
+                                                                                if prd in lst_periode:
+                                                                                    index = lst_periode.index(prd)
+                                                                        
+                                                                                days_plus = value_periode[index]
+                                                                                
+                                                                                dateTimeNextIntervention = dateTimeDemarrageComptage + timedelta(days=days_plus)
+                                                                                
                                                                                 data = {
     
                                                                                             "activite" : activite,
-                                                                                            "periode" : periode,
-                                                                                            "agent" : agent,
+                                                                                            "periode" : periode.pk,
+                                                                                            "agent" : agent.pk,
                                                                                             "durree" : durree,
-                                                                                            "section" : section,
-                                                                                            "equipement" : equipement,
+                                                                                            "section" : section.pk,
+                                                                                            "equipement" : equipement.pk,
                                                                                             "etatMachine" : etatMachine,
                                                                                             "priorite" : priorite,
                                                                                             "coutPrevue" : coutPrevue,
-                                                                                            "modeOperatoire" : modeOperatoire,
+                                                                                            "modeOperatoire" : modeOperatoire.pk,
                                                                                             "dateTimeDemarrageComptage" : dateTimeDemarrageComptage,
+                                                                                            "dateTimeNextIntervention": dateTimeNextIntervention
                                                                                             
                                                                                         }
-                                                                                    
-                                                                                serializer = serializers.maintenancePreventiveSerializer(data=data)
                                                                                 
+                                                                                serializer = serializers.maintenancePreventiveSerializer(data=data)
+                                                                                if serializer.is_valid():
+                                                                                    serializer.save()
+                                                                                    data = "succes"
+                                                                                    
+                                                                                else:
+                                                                                    data = str(serializer.errors)
+                                                                                    print(data)
                                                                             except:
                                                                                 data = "Error on Date Demarrage!!"
                                                  
@@ -294,4 +302,50 @@ def addPreventive(request):
         
         except:
             data = "Error on your request data!"
+    
+    else:
+        data = "Method not allowed!!"
+    
+    return Response(data)
+
+
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def removePreventive(request):
+    
+    """
+        Remove Preventive!!
+    """
+    
+    if request.method == "GET":
+        try:
+            id_preventive = request.query_params.get('id')
             
+            try:
+                id_preventive = int(id_preventive)
+                preventive = models.MaintenancePreventive.objects.get(id=id_preventive)
+                
+                if preventive:
+                    preventive.delete()
+                    data = "Preventive Removed!!"
+                    
+            except:
+                data = "id_preventive not valid!"
+            
+        except:
+            data = "Preventive not specified!!"
+    
+    return Response(data)
+
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def modifyPreventive(request):
+    """_summary_
+
+    Args:
+        request (_type_): _description_
+    """
