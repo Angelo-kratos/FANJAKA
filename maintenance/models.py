@@ -60,7 +60,7 @@ class ModeOperatoire(models.Model):
     """
     
     name = models.CharField(max_length=100)
-    opération = models.TextField()
+    operation = models.TextField()
     
     def __str__(self):
         return self.name
