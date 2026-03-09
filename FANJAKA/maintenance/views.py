@@ -2,7 +2,7 @@
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from django.urls import get_resolver
-from rest_framework.permissions import AllowAny#,IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from maintenance import models
 from maintenance import serializers
 from django.utils import timezone
@@ -11,7 +11,7 @@ from datetime import timedelta
 
 
 @api_view(["GET"])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def list_urls(request):
     resolver = get_resolver()
     urls = []
@@ -32,108 +32,86 @@ def list_urls(request):
 
 
 @api_view(["POST"])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def maintenanceWithFiltering(request):
     
     """
         Maintenance with filtering
     """
-    preventives = []
+    
     if request.method == "POST":
         
-        lst_data = []
-        allowed_keys = {"activite", "periode", "agent", "equipement", "section"}
-
-        keys = set(request.data.keys())
-        extra = keys - allowed_keys
-
-        if extra:
-            return Response({
-                'status': 0,
-                'msg': f"Arguments non autorisés : {', '.join(extra)}"
-            })
-        
-        activite = request.data.get("activite")
-        periode = request.data.get("periode")
-        agent = request.data.get("agent")
-        equipement = request.data.get("equipement")
-        section = request.data.get("section")
-
         try:
-            if activite != "all" and len(activite) != 0:
             
-                activites = models.MaintenancePreventive.objects.filter(activite__istartswith = activite)
-                for act in activites:
-                    lst_data.append(act)
+            activite = request.data.get("activite")
+            periode = request.data.get("periode")
+            agent = request.data.get("agent")
+            equipement = request.data.get("equipement")
+            section = request.data.get("section")
+            
+            lst_data = []
+            lst_preventive = []
+            if activite != "all" and len(activite) !=0:
                 
-                activites = models.MaintenancePreventive.objects.filter(activite__icontains = activite)
-                for act in activites:
-                    if act not in lst_data:
-                        lst_data.append(act)
-
-        except:
-            return Response({
-                    'status' : 0,
-                    'msg' : "Erreur d'argument",
-            } )
-        
-        if len(lst_data) == 0 and len(activite) != 0:
-            status = 1
-            data = []
-
-        else:
-
-            if periode != "all" and periode is not None:
-
                 try:
-                    periode = models.Periode.objects.get(name=periode)
-
-                except:
-                    return Response({
-                        "status":0,
-                        "msg":"Erreur periode!"
-                    })
-                
-                if len(lst_data) == 0:
-                    activites = models.MaintenancePreventive.objects.filter(periode=periode)
+                    activites = models.MaintenancePreventive.objects.filter(activite__istartswith = activite)
                     for act in activites:
                         lst_data.append(act)
-                
-                else:
-                    for preventive in lst_data:
-                        if preventive.periode != periode:
-                            lst_data.remove(preventive)
                     
-            if agent != "all" and agent is not None:
-
-                try:
+                    activites = models.MaintenancePreventive.objects.filter(activite__icontains = activite)
+                    for act in activites:
+                        if act not in lst_data:
+                            lst_data.append(act)
                     
-                    agent = models.Poste.objects.get(name=agent)
-
                 except:
-                    return Response({
-                        "status":0,
-                        "msg":"Erreur agent!"
-                    })
-                
-                if agent:
-                    try:
-                        
-                        if len(lst_data) == 0:
-                            activites = models.MaintenancePreventive.objects.filter(agent=agent)
-                            for act in activites:
-                                lst_data.append(act)
-                        
-                        else:
-                            for preventive in lst_data:
-                                if preventive.agent != agent:
-                                    lst_data.remove(preventive)
-                        
-                    except:
-                        data ="Error to get Agent dans DB!"
+                    data = "Erreur de récuperation  d'activite dans DB!!"
+            
+        
+            if periode != "all":
+                try:
+                    periode = models.Periode.objects.get(name=periode)
+                    if periode:
+                        try:
+                            
+                            if len(lst_data) == 0:
+                                activites = models.MaintenancePreventive.objects.filter(periode=periode)
+                                for act in activites:
+                                    lst_data.append(act)
+                            
+                            else:
+                                for preventive in lst_data:
+                                    if preventive.periode != periode:
+                                        lst_data.remove(preventive)
+                            
+                        except:
+                            data ="Error to get activites dans DB!"
+                except:
+                    data = "Error to get this periode in DB!"
+            
+            
+            if agent != "all":
+                try:
+                    agent = models.Poste.objects.get(name=agent)
+                    if agent:
+                        try:
+                            
+                            if len(lst_data) == 0:
+                                activites = models.MaintenancePreventive.objects.filter(agent=agent)
+                                for act in activites:
+                                    lst_data.append(act)
+                            
+                            else:
+                                for preventive in lst_data:
+                                    if preventive.agent != agent:
+                                        lst_data.remove(preventive)
+                            
+                        except:
+                            data ="Error to get Agent dans DB!"
+                except:
+                    data = "Error to get this agent in DB!"
                     
                     
-            if equipement != "all" and equipement is not None:
+            if equipement != "all":
                 try:
                     equipement = models.Equipement.objects.get(name=equipement)
                     if equipement:
@@ -153,7 +131,7 @@ def maintenanceWithFiltering(request):
                 except:
                     data = "Error to get this equipement in DB!"
                     
-            if section != "all" and section is not None:
+            if section != "all":
                 try:
                     section = models.Section.objects.get(name=section)
                     if section:
@@ -181,7 +159,7 @@ def maintenanceWithFiltering(request):
                     
             
             serializer = serializers.maintenancePreventiveSerializer(lst_data, many=True)
-            # print(serializer.data)
+            print(serializer.data)
             
             preventives = serializer.data
             for data in preventives:
@@ -193,27 +171,26 @@ def maintenanceWithFiltering(request):
                 modeOperatoire = models.ModeOperatoire.objects.get(id = data['modeOperatoire'])
                 data['modeOperatoireTitle'] = modeOperatoire.name
                 data['modeOperatoire'] = modeOperatoire.operation
-            
-            data, status = preventives, 1
-
+                
+        
+        except:
+            data = "Manque d'argument sur maintenance with filtering!!"
+    
     else:
-        return Response({
-                    'status' : 0,
-                    'msg' : "Method not allowed!!",
-                    }                
-                )
+        data = "Method not allowed!!"
         
     return Response({
-                    'status' : status,
-                    'msg' : "Requête avec succes!",
-                    'count' : len(data),
-                    'data' : data
+                    'status' : "succes",
+                    'count' : len(preventives),
+                    'data' : preventives
                     }                
                 )
+
+
 
 
 @api_view(["POST"])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def addPreventive(request):
     
     """
@@ -335,7 +312,7 @@ def addPreventive(request):
 
 
 @api_view(["GET"])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def removePreventive(request):
     
     """
@@ -365,7 +342,7 @@ def removePreventive(request):
 
 
 @api_view(["POST"])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def modifyPreventive(request):
     """_summary_
 
